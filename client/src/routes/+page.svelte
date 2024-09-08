@@ -1,26 +1,70 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    import {
+        createSvelteTable,
+        flexRender,
+        getCoreRowModel,
+        getPaginationRowModel,
+        type ColumnDef,
+    } from "@tanstack/svelte-table";
+
     import type { PageData } from "./$types";
-    import Anime from "./anime.svelte";
+    import type { RecommendedAnime } from "./+page.server";
+
+    import { Animes } from "$lib/components";
+    import { onMount } from "svelte";
     import { gsap, ScrollTrigger } from "$lib/gsap";
 
     export let data: PageData;
     let loading = true;
 
-    onMount(() => {
+    const pageSize = 10;
+    const columns: ColumnDef<RecommendedAnime>[] = [
+        {
+            accessorKey: "content",
+            header: "Description",
+        },
+        {
+            accessorKey: "entry",
+            header: "Recommendations",
+            cell: ({ row }) =>
+                flexRender(Animes, { subRecommendations: row.original.entry }),
+        },
+    ];
+    const table = createSvelteTable({
+        columns,
+        data: data.recommended.data,
+        getPaginationRowModel: getPaginationRowModel(),
+        getCoreRowModel: getCoreRowModel(),
+    });
+
+    $table.setPageSize(pageSize);
+
+    const handlePageChange = (direction: "next" | "previous") => {
+        direction === "next" && $table.nextPage();
+        direction === "previous" && $table.previousPage();
+        attachAnimation();
+        document.body.scrollIntoView();
+    };
+
+    const attachAnimation = () => {
         ScrollTrigger.refresh();
-        for (let i = 0; i < data.recommended.data.length; i++) {
-            gsap.from(`#anime-${i}`, {
-                x: i % 2 === 0 ? 200 : -200,
-                opacity: 0,
-                duration: 3,
-                ease: "power4.out",
-                scrollTrigger: {
-                    trigger: `#anime-${i}`,
-                    start: "top 80%",
-                },
+        Array(pageSize)
+            .fill(0)
+            .map((_, i) => {
+                gsap.from(`.row-${i}`, {
+                    x: -200,
+                    opacity: 0,
+                    duration: 3,
+                    ease: "power4.out",
+                    scrollTrigger: {
+                        trigger: `.row-${i}`,
+                        start: "top 80%",
+                    },
+                });
             });
-        }
+    };
+    onMount(() => {
+        attachAnimation();
         loading = false;
     });
 </script>
@@ -46,22 +90,57 @@
     </div>
 {/if}
 
-{#each data.recommended.data as recommendation, i}
-    <div
-        class="mb-4 grid grid-cols-2 rounded border border-gray-800"
-        id={`anime-${i}`}
-    >
-        <h1 class="col-span-2 border-b border-gray-800 p-2">
-            {recommendation.content}
-        </h1>
-        {#each recommendation.entry as subRecommendation}
-            <div class="mb-2 p-2">
-                <Anime
-                    title={subRecommendation.title}
-                    mal_id={subRecommendation.mal_id}
-                    image={subRecommendation.images.webp.image_url}
-                />
-            </div>
+<h2 class="mb-4 text-3xl font-semibold text-gray-800">Recommendations</h2>
+<table class="w-full table-auto text-left">
+    <thead class="border-b border-gray-300">
+        {#each $table.getHeaderGroups() as headerGroup}
+            <tr>
+                {#each headerGroup.headers as header}
+                    <th class="p-4">
+                        {#if !header.isPlaceholder}
+                            <svelte:component
+                                this={flexRender(
+                                    header.column.columnDef.header,
+                                    header.getContext(),
+                                )}
+                            />
+                        {/if}
+                    </th>
+                {/each}
+            </tr>
         {/each}
-    </div>
-{/each}
+    </thead>
+    <tbody>
+        {#each $table.getRowModel().rows as row, i}
+            <tr class={`${i % 2 === 0 ? "bg-gray-100" : ""} row-${i}`}>
+                {#each row.getVisibleCells() as cell, i}
+                    <td class={`p-4 align-top ${i === 0 ? "max-w-md" : ""}`}>
+                        <svelte:component
+                            this={flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext(),
+                            )}
+                        />
+                    </td>
+                {/each}
+            </tr>
+        {/each}
+    </tbody>
+</table>
+<button
+    class="mt-4 rounded bg-gray-300 p-4 hover:bg-gray-100 disabled:bg-gray-50"
+    on:click={() => handlePageChange("previous")}
+    disabled={!$table.getCanPreviousPage()}
+>
+    Prev
+</button>
+
+<button
+    class="mt-4 rounded bg-gray-300 p-4 hover:bg-gray-200 disabled:text-gray-200"
+    on:click={() => handlePageChange("next")}
+    disabled={!$table.getCanNextPage()}
+>
+    Next
+</button>
+
+Page {$table.getState().pagination.pageIndex + 1} of {$table.getPageCount()}
