@@ -60,6 +60,10 @@ func main() {
 		return services.GetFavorites(c)
 	})
 
+	e.POST("/favorites", services.InsertFavorite);
+
+	e.DELETE("/favorites/:mal_id", services.DeleteFavorite);
+
 	slog.Info("HTTP server listening on", "port", system.HTTP_PORT)
 	err = e.Start(":" + system.HTTP_PORT)
 	if err != nil {

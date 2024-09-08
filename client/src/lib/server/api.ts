@@ -7,7 +7,10 @@ export default async function api<T, D = T>(
         method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
         body?: D;
     } = {},
-): Promise<{ success: true; data: T } | { success: false; error: string }> {
+): Promise<
+    | { success: true; data: T }
+    | { success: false; error: string; message?: string }
+> {
     try {
         const res = await fetch(url, {
             method,
@@ -19,7 +22,9 @@ export default async function api<T, D = T>(
 
         // check if invalid response
         if (!res.ok) {
-            return { success: false, error: res.statusText };
+            const error = await res.json();
+
+            return { success: false, error: res.statusText, message: error };
         }
         // check if empty response
         if (res.status === 204) {

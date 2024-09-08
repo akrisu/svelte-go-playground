@@ -33,6 +33,9 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"gsap": "^3.12.5"
+		"@tanstack/svelte-table": "^8.20.5",
+		"gsap": "^3.12.5",
+		"svelte-sonner": "^0.3.27",
+		"zod": "^3.23.8"
 	}
 }
